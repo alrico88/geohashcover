@@ -1,0 +1,76 @@
+{
+  "name": "geohashcover",
+  "version": "0.1.0",
+  "description": "Converts any GeoJSON shape into a list of geohashes",
+  "keywords": [
+    "geohash",
+    "geojson",
+    "geospatial",
+    "line2geohash",
+    "point2geohash",
+    "polygon",
+    "polygon2geohash",
+    "shape2geohash"
+  ],
+  "homepage": "https://github.com/alrico88/geohashcover#readme",
+  "bugs": {
+    "url": "https://github.com/alrico88/geohashcover/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Alberto Rico",
+    "url": "https://alrico.es"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alrico88/geohashcover.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "coverage": "vp test run --coverage",
+    "check": "vp check",
+    "prepublishOnly": "vp run build",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "@turf/area": "^7.3.5",
+    "@turf/bbox": "^7.3.5",
+    "@turf/bbox-polygon": "^7.3.5",
+    "@turf/boolean-overlap": "^7.3.5",
+    "@turf/boolean-point-in-polygon": "^7.3.5",
+    "@turf/boolean-within": "^7.3.5",
+    "@turf/envelope": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
+    "@turf/intersect": "^7.3.5",
+    "@turf/line-split": "^7.3.5",
+    "ngeohash": "^0.6.3"
+  },
+  "devDependencies": {
+    "@turf/centroid": "^7.3.5",
+    "@types/geojson": "^7946.0.16",
+    "@types/ngeohash": "^0.6.8",
+    "@types/node": "^25.6.2",
+    "@typescript/native-preview": "7.0.0-dev.20260509.2",
+    "@vitest/coverage-v8": "^4.1.6",
+    "bumpp": "^11.1.0",
+    "typescript": "^6.0.3",
+    "vite-plus": "^0.1.20"
+  },
+  "packageManager": "pnpm@11.1.1",
+  "inlinedDependencies": {
+    "@types/geojson": "7946.0.16"
+  }
+}
