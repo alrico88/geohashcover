@@ -2,31 +2,16 @@
 import { describe, test, expect } from "vite-plus/test";
 import ngeohash from "ngeohash";
 
-import berlin from "./berlin.json" with { type: "json" };
 import { toGeohashes } from "../src/index.ts";
-import { ShapeProcessor } from "../src/core.ts";
+import { resolveOptions, shapeToGeohashes } from "../src/core.ts";
 import * as geojsonExamples from "./geojsonExamples.ts";
+import { berlinPolygon, sorted } from "./helpers.ts";
 
-const berlinPolygon = (berlin as any).fields.geo_shape;
-
-function checkForDuplicates(geohashes: string[]): string[] | null {
-  const geohashesAsSet = new Set(geohashes);
-  if (geohashes.length !== geohashesAsSet.size) {
-    const duplicates: string[] = [];
-    const seen = new Set<string>();
-    for (const gh of geohashes) {
-      if (seen.has(gh)) {
-        duplicates.push(gh);
-      } else {
-        seen.add(gh);
-      }
-    }
-    return duplicates;
-  }
-  return null;
+function expectNoDuplicates(geohashes: string[]): void {
+  expect(geohashes).toEqual([...new Set(geohashes)]);
 }
 
-function bboxToCoordinates(bbox: [number, number, number, number]) {
+function bboxToCoordinates(bbox: number[]) {
   return [
     [
       [bbox[1], bbox[2]],
@@ -41,16 +26,23 @@ function bboxToCoordinates(bbox: [number, number, number, number]) {
 describe("Berlin tests", () => {
   test("intersect", () => {
     const geohashes = toGeohashes(berlinPolygon);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expectNoDuplicates(geohashes);
+    expect(geohashes).toHaveLength(2137);
+  });
+
+  test("intersect is insideOnly plus border", () => {
+    const inside = toGeohashes(berlinPolygon, { hashMode: "insideOnly" });
+    const border = toGeohashes(berlinPolygon, { hashMode: "border" });
+    expect(inside.filter((gh) => border.includes(gh))).toEqual([]);
+    expect(sorted([...inside, ...border])).toEqual(sorted(toGeohashes(berlinPolygon)));
   });
 
   test("envelope", () => {
     const geohashes = toGeohashes(berlinPolygon, {
       hashMode: "envelope",
     });
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expectNoDuplicates(geohashes);
+    expect(geohashes).toHaveLength(3969);
   });
 
   test("insideOnly", () => {
@@ -94,20 +86,15 @@ describe("Berlin tests", () => {
       hashMode: "insideOnly",
       precision: 5,
     });
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("border", () => {
     const geohashes = toGeohashes(berlinPolygon, {
       hashMode: "border",
     });
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expectNoDuplicates(geohashes);
+    expect(geohashes).toHaveLength(388);
   });
 });
 
@@ -116,10 +103,10 @@ describe("Manual tests", () => {
     const testGeohash = "u336x";
     const bbox = ngeohash.decode_bbox(testGeohash);
     const geohashes = toGeohashes(
-      { type: "Polygon", coordinates: bboxToCoordinates(bbox as any) },
+      { type: "Polygon", coordinates: bboxToCoordinates(bbox) },
       { precision: testGeohash.length },
     );
-    expect(geohashes.length).toBe(1);
+    expect(geohashes).toHaveLength(1);
     expect(geohashes[0]).toBe(testGeohash);
   });
 
@@ -141,12 +128,7 @@ describe("Manual tests", () => {
         precision: expectedGeohashes[0].length,
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test multi polygon", () => {
@@ -182,12 +164,7 @@ describe("Manual tests", () => {
         precision: expectedGeohashes[0].length,
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test polygon with a hole", () => {
@@ -224,12 +201,7 @@ describe("Manual tests", () => {
         precision: expectedGeohashes[0].length,
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test polygon with hashMode 'border'", () => {
@@ -260,12 +232,7 @@ describe("Manual tests", () => {
         hashMode: "border",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test polygon with hashMode 'insideOnly'", () => {
@@ -288,12 +255,7 @@ describe("Manual tests", () => {
         hashMode: "insideOnly",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test polygon with hashMode 'envelope'", () => {
@@ -324,12 +286,7 @@ describe("Manual tests", () => {
         hashMode: "envelope",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test line with hashMode 'intersect'", () => {
@@ -347,12 +304,7 @@ describe("Manual tests", () => {
         hashMode: "intersect",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test line with hashMode 'border'", () => {
@@ -370,12 +322,7 @@ describe("Manual tests", () => {
         hashMode: "border",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test line with hashMode 'insideOnly'", () => {
@@ -393,12 +340,7 @@ describe("Manual tests", () => {
         hashMode: "insideOnly",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test line with hashMode 'envelope'", () => {
@@ -427,12 +369,7 @@ describe("Manual tests", () => {
         hashMode: "envelope",
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test minIntersect 0.5", () => {
@@ -454,12 +391,7 @@ describe("Manual tests", () => {
         minIntersect: 0.5,
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Test minIntersect 0.25", () => {
@@ -481,18 +413,12 @@ describe("Manual tests", () => {
         minIntersect: 0.25,
       },
     );
-    for (const gh of geohashes) {
-      expect(expectedGeohashes).toContain(gh);
-    }
-    expect(geohashes.length).toBe(expectedGeohashes.length);
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expect(sorted(geohashes)).toEqual(sorted(expectedGeohashes));
   });
 
   test("Overlapping polygons -> deduplicates automatically", () => {
     const geohashes = toGeohashes(geojsonExamples.overlappingPolygons());
-    const duplicates = checkForDuplicates(geohashes);
-    expect(duplicates).toBe(null);
+    expectNoDuplicates(geohashes);
   });
 
   test("Test point", () => {
@@ -500,7 +426,7 @@ describe("Manual tests", () => {
     const geohashes = toGeohashes(geojsonExamples.Point(), {
       precision: testGeohash.length,
     });
-    expect(geohashes.length).toBe(1);
+    expect(geohashes).toHaveLength(1);
     expect(geohashes[0]).toBe(testGeohash);
   });
 
@@ -509,7 +435,7 @@ describe("Manual tests", () => {
     const geohashes = toGeohashes(geojsonExamples.MultiPoint(), {
       precision: testGeohashes[0].length,
     });
-    expect(geohashes.length).toBe(2);
+    expect(geohashes).toHaveLength(2);
     expect(geohashes[0]).toBe(testGeohashes[0]);
     expect(geohashes[1]).toBe(testGeohashes[1]);
   });
@@ -525,17 +451,15 @@ describe("Manual tests", () => {
           [-8.49468566805409, 41.1146850333377],
         ],
       },
-    } as any);
-    expect(geohashes.length).toBe(1);
+      properties: null,
+    });
+    expect(geohashes).toHaveLength(1);
     expect(geohashes[0]).toBe(testGeohashes[0]);
   });
 
-  test("ShapeProcessor point directly", () => {
-    const processor = new ShapeProcessor([13.32165, 52.5125], {
-      precision: 7,
-    });
-    const geohashes = processor.process();
-    expect(geohashes.length).toBe(1);
+  test("shapeToGeohashes point directly", () => {
+    const geohashes = shapeToGeohashes([13.32165, 52.5125], resolveOptions({ precision: 7 }));
+    expect(geohashes).toHaveLength(1);
     expect(geohashes[0]).toBe("u336xps");
   });
 });
